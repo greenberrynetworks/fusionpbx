@@ -1,0 +1,27 @@
+#############################################
+##  Avaya J100 Series (Open SIP) Settings  ##
+##  Generic Provisioning - No DES / RC     ##
+#############################################
+
+## --- Disable DES and Cloud Provisioning ---
+SET DES_STAT 0
+
+SET ENABLE_IPOFFICE 0
+SET ENABLE_AVAYA_ENVIRONMENT 0
+SET ENABLE_3PCC_ENVIRONMENT 1
+SET 3PCC_SERVER_MODE 0
+SET APPSTAT 0
+
+## --- Network & Provisioning ---
+SET TLSDIR /app/provision
+SET TLSPORT 443
+SET DHCPSTD 0
+
+## --- PPM Settings
+SET ENABLE_PPM 0
+SET ENABLE_PPM_SOURCED_SIPPROXYSRVR 0
+
+## --- Miscellaneous ---
+SET PROCSTAT 0
+SET SIMULTANEOUS_REGISTRATIONS 1
+

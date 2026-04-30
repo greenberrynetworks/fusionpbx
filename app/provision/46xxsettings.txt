@@ -1,0 +1,27 @@
+# Management > Device Enrollment Service
+SET DES_STAT 1  # Disable
+
+# IP Configuration > Servers > HTTPS Provisioning Server
+# SET TLSSRVR "{$row.server_address}"
+SET TLSDIR "/app/provision"
+SET TLSPORT 443
+
+# IP Configuration > Servers > Environment Settings
+SET ENABLE_AVAYA_ENVIRONMENT 0
+SET DISCOVER_AVAYA_ENVIRONMENT 0
+SET ENABLE_IPOFFICE 0
+SET ENABLE_3PCC_ENVIRONMENT 1
+SET 3PCC_SERVER_MODE 0
+
+# SET PHNNUMOFSA 3
+
+# Web Server
+SET ENABLE_WEBSERVER 1
+SET WEBSERVER_ON_HTTP 1
+
+# Syslog
+SET SYSLOG_ENABLED 1
+SET LOGSRVR nysw2.greenberrynetworks.com:514
+SET LOGSRVR_SECURE 0
+SET SYSLOG_LEVEL  7
+

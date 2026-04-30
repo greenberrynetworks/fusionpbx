@@ -1,1 +1,3 @@
+GET 46xxsettings.txt
+GET J100settings.txt
 GET $MACADDR.txt
