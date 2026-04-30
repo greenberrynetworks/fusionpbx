@@ -27,11 +27,7 @@
 /**
  * groups class provides methods for add, delete groups, and add default groups
  *
- * @method null delete
- * @method null toggle
- * @method null copy
  */
-if (!class_exists('groups')) {
 	class groups {
 
 		/**
@@ -66,10 +62,6 @@ if (!class_exists('groups')) {
 			else {
 				$this->database = new database;
 			}
-
-			//set the application name and uuid
-			$this->database->app_name = $this->app_name;
-			$this->database->app_uuid = $this->app_uuid;
 
 			//set the domain_uuid
 			if (is_uuid($domain_uuid)) {
@@ -141,7 +133,7 @@ if (!class_exists('groups')) {
 							if (is_array($array) && @sizeof($array) != 0) {
 
 								//grant temporary permissions
-									$p = new permissions;
+									$p = permissions::new();
 									$p->add('group_permission_delete', 'temp');
 
 								//execute delete
@@ -193,7 +185,7 @@ if (!class_exists('groups')) {
 							if (is_array($array) && @sizeof($array) != 0) {
 
 								//grant temporary permissions
-									$p = new permissions;
+									$p = permissions::new();
 									$p->add('user_group_delete', 'temp');
 
 								//execute delete
@@ -437,7 +429,7 @@ if (!class_exists('groups')) {
 					$group_uuids[$array['groups'][$x]['group_name']] = $array['groups'][$x]['group_uuid'];
 
 					//add the temporary permissions
-					$p = new permissions;
+					$p = permissions::new();
 					$p->add("group_add", "temp");
 					$p->add("group_edit", "temp");
 
@@ -482,7 +474,7 @@ if (!class_exists('groups')) {
 					unset($group_uuids);
 
 					//add the temporary permissions
-					$p = new permissions;
+					$p = permissions::new();
 					$p->add("group_permission_add", "temp");
 					$p->add("group_permission_edit", "temp");
 
@@ -534,6 +526,3 @@ if (!class_exists('groups')) {
 			$_SESSION["user"]["group_level"] = $this->group_level;
 		}
 	}
-}
-
-?>

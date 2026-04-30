@@ -201,9 +201,8 @@ if (!function_exists('fax_split_dtmf')) {
 
 //includes files
 	require_once dirname(__DIR__) . "/resources/require.php";
-	include "resources/classes/event_socket.php";
-	include "resources/phpmailer/class.phpmailer.php";
-	include "resources/phpmailer/class.smtp.php"; // optional, gets called from within class.phpmailer.php if not already loaded
+	include_once "resources/phpmailer/class.phpmailer.php";
+	include_once "resources/phpmailer/class.smtp.php"; // optional, gets called from within class.phpmailer.php if not already loaded
 
 //set php ini values
 	ini_set('max_execution_time', 900); //15 minutes
@@ -428,7 +427,7 @@ if (!function_exists('fax_split_dtmf')) {
 			$array['fax_queue'][0]['fax_accountcode'] = $fax_accountcode;
 
 			//add temporary permisison
-			$p = new permissions;
+			$p = permissions::new();
 			$p->add('fax_queue_add', 'temp');
 
 			//save the data
@@ -520,7 +519,7 @@ if (!function_exists('fax_split_dtmf')) {
 			}
 
 			//send the email
-			$email = new email;
+			$email = new email(["domain_uuid" => $domain_uuid]);
 			$email->recipients = $fax_email;
 			$email->subject = $email_subject;
 			$email->body = $email_body;

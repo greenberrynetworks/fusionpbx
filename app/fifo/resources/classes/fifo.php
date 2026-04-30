@@ -2,12 +2,7 @@
 
 /**
  * fifo class
- *
- * @method null delete
- * @method null toggle
- * @method null copy
  */
-if (!class_exists('fifo')) {
 	class fifo {
 
 		/**
@@ -111,7 +106,7 @@ if (!class_exists('fifo')) {
 						//delete the checked rows
 							if (is_array($array) && @sizeof($array) != 0) {
 								//grant temporary permissions
-									$p = new permissions;
+									$p = permissions::new();
 									$p->add('fifo_member_delete', 'temp');
 									$p->add('dialplan_delete', 'temp');
 
@@ -261,7 +256,7 @@ if (!class_exists('fifo')) {
 							if (is_array($array) && @sizeof($array) != 0) {
 
 								//grant temporary permissions
-									$p = new permissions;
+									$p = permissions::new();
 									$p->add('fifo_member_add', 'temp');
 
 								//save the array
@@ -283,6 +278,3 @@ if (!class_exists('fifo')) {
 		}
 
 	}
-}
-
-?>

@@ -112,13 +112,13 @@
 
 		//get http post variables and set them to php variables
 			if (!empty($_POST)) {
-				$forward_all_enabled = $_POST["forward_all_enabled"];
+				$forward_all_enabled = !empty($_POST["forward_all_destination"]) ? $_POST["forward_all_enabled"] : 'false';
 				$forward_all_destination = $_POST["forward_all_destination"];
-				$forward_busy_enabled = $_POST["forward_busy_enabled"];
+				$forward_busy_enabled = !empty($_POST["forward_busy_destination"]) ? $_POST["forward_busy_enabled"] : 'false';
 				$forward_busy_destination = $_POST["forward_busy_destination"];
-				$forward_no_answer_enabled = $_POST["forward_no_answer_enabled"];
+				$forward_no_answer_enabled = !empty($_POST["forward_no_answer_destination"]) ? $_POST["forward_no_answer_enabled"] : 'false';
 				$forward_no_answer_destination = $_POST["forward_no_answer_destination"];
-				$forward_user_not_registered_enabled = $_POST["forward_user_not_registered_enabled"];
+				$forward_user_not_registered_enabled = !empty($_POST["forward_user_not_registered_destination"]) ? $_POST["forward_user_not_registered_enabled"] : 'false';
 				$forward_user_not_registered_destination = $_POST["forward_user_not_registered_destination"];
 
 				$cid_name_prefix = $_POST["cid_name_prefix"] ?? '';
@@ -248,7 +248,7 @@
 			}
 
 		//add the dialplan permission
-			$p = new permissions;
+			$p = permissions::new();
 			$p->add("extension_edit", "temp");
 
 		//save the data
@@ -341,7 +341,7 @@
 		*/
 
 		//send feature event notify to the phone
-			if (!empty($_SESSION['device']['feature_sync']['boolean']) && $_SESSION['device']['feature_sync']['boolean'] == "true") {
+			if (filter_var($_SESSION['device']['feature_sync']['boolean'] ?? false, FILTER_VALIDATE_BOOL)) {
 				$ring_count = ceil($call_timeout / 6);
 				$feature_event_notify = new feature_event_notify;
 				$feature_event_notify->domain_name = $_SESSION['domain_name'];
@@ -358,7 +358,7 @@
 				else {
 					$feature_event_notify->forward_all_destination = $forward_all_destination;
 				}
-				
+
 				if ($forward_busy_destination == "") {
 					$feature_event_notify->forward_busy_destination = "0";
 				}
@@ -421,7 +421,6 @@
 
 		//synchronize configuration
 			if (!empty($_SESSION['switch']['extensions']['dir']) && is_readable($_SESSION['switch']['extensions']['dir'])) {
-				require_once "app/extensions/resources/classes/extension.php";
 				$ext = new extension;
 				$ext->xml();
 				unset($ext);
@@ -504,7 +503,7 @@
 	}
 
 //prepare the autocomplete
-	if(!empty($_SESSION['follow_me']['follow_me_autocomplete']['boolean']) && $_SESSION['follow_me']['follow_me_autocomplete']['boolean'] == 'true') {
+	if(filter_var($_SESSION['follow_me']['follow_me_autocomplete']['boolean'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
 		echo "<link rel=\"stylesheet\" href=\"".PROJECT_PATH."/resources/jquery/jquery-ui.min.css\" />\n";
 		echo "<script src=\"".PROJECT_PATH."/resources/jquery/jquery-ui.min.js\"></script>\n";
 		echo "<script type=\"text/javascript\">\n";
@@ -533,14 +532,17 @@
 	$object = new token;
 	$token = $object->create($_SERVER['PHP_SELF']);
 
+//save the back button location using referer
+	$back_destination = "window.location.href='" . ($_SESSION['call_forward_back'] ?? "/app/call_forward/call_forward.php") . "'";
+
 //show the content
 	echo "<form method='post' name='frm' id='frm'>\n";
 
 	echo "<div class='action_bar' id='action_bar'>\n";
 	echo "	<div class='heading'><b>".$text['title-call_forward']."</b></div>\n";
 	echo "	<div class='actions'>\n";
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','onclick'=>'history.back();']);
-	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$_SESSION['theme']['button_icon_save'],'id'=>'btn_save','style'=>'margin-left: 15px;']);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','onclick'=>$back_destination]);
+	echo button::create(['type'=>'submit','label'=>$text['button-save'],'icon'=>$settings->get('theme', 'button_icon_save'),'id'=>'btn_save','style'=>'margin-left: 15px;']);
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";

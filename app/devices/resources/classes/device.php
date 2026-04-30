@@ -336,7 +336,10 @@
 					break;
 				case "0021f2":
 					$device_vendor = "flyingvoice";
-					break;					
+					break;
+				case "f00786":
+					$device_vendor = "bittel";
+					break;
 				default:
 					$device_vendor = "";
 				}
@@ -345,10 +348,14 @@
 
 		public static function get_vendor_by_agent($agent){
 			if ($agent) {
+				//set the user agent string to lower case
 					$agent = strtolower($agent);
 				//get the vendor
 					if (preg_replace('/^.*?(aastra).*$/i', '$1', $agent) == "aastra") {
 						return "aastra";
+					}
+					if (preg_replace('/^.*?(algo).*$/i', '$1', $agent) == "algo") {
+						return "algo";
 					}
 					if (preg_replace('/^.*?(cisco\/spa).*$/i', '$1', $agent) == "cisco/spa") {
 						return "cisco-spa";
@@ -357,8 +364,8 @@
 						return "cisco";
 					}
 					if (preg_replace('/^.*?(digium).*$/i', '$1', $agent) == "digium") {
-                                                return "digium";
-                                        }
+						return "digium";
+					}
 					if (preg_replace('/^.*?(grandstream).*$/i', '$1', $agent) == "grandstream") {
 						return "grandstream";
 					}
@@ -401,6 +408,9 @@
 					}
 					if (preg_replace('/^.*?(avaya).*$/i', '$1', $agent) == "avaya") {
 						return "avaya";
+					}
+					if (preg_replace('/^.*?(BITTEL).*$/i', '$1', $agent) == "bittel") {
+						return "bittel";
 					}
 					// unknown vendor
 					return "";
@@ -512,7 +522,7 @@
 							if (is_array($array) && @sizeof($array) != 0) {
 
 								//grant temporary permissions
-									$p = new permissions;
+									$p = permissions::new();
 									$p->add('device_setting_delete', 'temp');
 									$p->add('device_line_delete', 'temp');
 									$p->add('device_key_delete', 'temp');
@@ -722,7 +732,7 @@
 							if (!empty($array) && is_array($array) && @sizeof($array) != 0) {
 
 								//grant temporary permissions
-									$p = new permissions;
+									$p = permissions::new();
 									$p->add('device_vendor_function_delete', 'temp');
 									$p->add('device_vendor_function_group_delete', 'temp');
 
@@ -784,7 +794,7 @@
 							if (!empty($array) && is_array($array) && @sizeof($array) != 0) {
 
 								//grant temporary permissions
-									$p = new permissions;
+									$p = permissions::new();
 									$p->add('device_vendor_function_group_delete', 'temp');
 
 								//execute delete
@@ -845,7 +855,7 @@
 							if (!empty($array) && is_array($array) && @sizeof($array) != 0) {
 
 								//grant temporary permissions
-									$p = new permissions;
+									$p = permissions::new();
 									$p->add('device_profile_key_delete', 'temp');
 									$p->add('device_profile_setting_delete', 'temp');
 
@@ -1370,13 +1380,13 @@
 							if (!empty($array) && is_array($array) && @sizeof($array) != 0) {
 
 								//grant temporary permissions
-									$p = new permissions;
+									$p = permissions::new();
 									$p->add('device_profile_key_add', 'temp');
 									$p->add('device_profile_setting_add', 'temp');
 
 								//save the array
 									$this->database->app_name = $this->app_name;
-									$this->databasee->app_uuid = $this->app_uuid;
+									$this->database->app_uuid = $this->app_uuid;
 									$this->database->save($array);
 									unset($array);
 

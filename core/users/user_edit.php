@@ -88,7 +88,7 @@
 			$array['user_groups'][0]['group_uuid'] = $group_uuid;
 			$array['user_groups'][0]['user_uuid'] = $user_uuid;
 
-			$p = new permissions;
+			$p = permissions::new();
 			$p->add('user_group_delete', 'temp');
 
 			$database->delete($array);
@@ -105,10 +105,10 @@
 //retrieve password requirements
 	if (permission_exists('user_password')) {
 		$required['length'] = $_SESSION['users']['password_length']['numeric'];
-		$required['number'] = ($_SESSION['users']['password_number']['boolean'] == 'true') ? true : false;
-		$required['lowercase'] = ($_SESSION['users']['password_lowercase']['boolean'] == 'true') ? true : false;
-		$required['uppercase'] = ($_SESSION['users']['password_uppercase']['boolean'] == 'true') ? true : false;
-		$required['special'] = ($_SESSION['users']['password_special']['boolean'] == 'true') ? true : false;
+		$required['number'] = filter_var($_SESSION['users']['password_number']['boolean'] ?? false, FILTER_VALIDATE_BOOL);
+		$required['lowercase'] = filter_var($_SESSION['users']['password_lowercase']['boolean'] ?? false, FILTER_VALIDATE_BOOL);
+		$required['uppercase'] = filter_var($_SESSION['users']['password_uppercase']['boolean'] ?? false, FILTER_VALIDATE_BOOL);
+		$required['special'] = filter_var($_SESSION['users']['password_special']['boolean'] ?? false, FILTER_VALIDATE_BOOL);
 	}
 
 //prepare the data
@@ -297,7 +297,7 @@
 					$array_delete['user_settings'][0]['user_setting_subcategory'] = 'language';
 					$array_delete['user_settings'][0]['user_uuid'] = $user_uuid;
 
-					$p = new permissions;
+					$p = permissions::new();
 					$p->add('user_setting_delete', 'temp');
 
 					$database->delete($array_delete);
@@ -345,7 +345,7 @@
 					$array_delete['user_settings'][0]['user_setting_subcategory'] = 'time_zone';
 					$array_delete['user_settings'][0]['user_uuid'] = $user_uuid;
 
-					$p = new permissions;
+					$p = permissions::new();
 					$p->add('user_setting_delete', 'temp');
 
 					$database->delete($array_delete);
@@ -394,7 +394,7 @@
 						$array_delete['user_settings'][0]['user_setting_subcategory'] = 'key';
 						$array_delete['user_settings'][0]['user_uuid'] = $user_uuid;
 
-						$p = new permissions;
+						$p = permissions::new();
 						$p->add('user_setting_delete', 'temp');
 
 						$database->delete($array_delete);
@@ -517,6 +517,19 @@
 				$array['users'][$x]['username'] = $username;
 			}
 			if (permission_exists('user_password') && !empty($password) && $password == $password_confirm) {
+				//remove the session id files
+				$sql = "select session_id from v_user_logs ";
+				$sql .= "where user_uuid = :user_uuid ";
+				$sql .= "and timestamp > NOW() - INTERVAL '4 hours' ";
+				$parameters['user_uuid'] = $user_uuid;
+				$user_logs = $database->select($sql, $parameters, 'all');
+				foreach ($user_logs as $row) {
+					if (preg_match('/^[a-zA-Z0-9,-]+$/', $row['session_id']) && file_exists(session_save_path() . "/sess_" . $row['session_id'])) {
+						unlink(session_save_path() . "/sess_" . $row['session_id']);
+					}
+				}
+
+				//create a one way hash for the user password
 				$array['users'][$x]['password'] = password_hash($password, PASSWORD_DEFAULT, $options);
 				$array['users'][$x]['salt'] = null;
 			}
@@ -542,7 +555,7 @@
 			$x++;
 
 		//add the user_edit permission
-			$p = new permissions;
+			$p = permissions::new();
 			$p->add("user_setting_add", "temp");
 			$p->add("user_setting_edit", "temp");
 			$p->add("user_edit", "temp");
@@ -714,7 +727,7 @@
 		echo "<div class='unsaved'>".$text['message-unsaved_changes']." <i class='fas fa-exclamation-triangle'></i></div>";
 	}
 	if (permission_exists('user_add') || permission_exists('user_edit')) {
-		echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','link'=>'users.php']);
+		echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','link'=>'users.php']);
 	}
 	$button_margin = 'margin-left: 15px;';
 	if (permission_exists('ticket_add') || permission_exists('ticket_edit')) {
@@ -726,9 +739,9 @@
 		unset($button_margin);
 	}
 	if (permission_exists('user_setting_view')) {
-		echo button::create(['type'=>'button','label'=>$text['button-settings'],'icon'=>$_SESSION['theme']['button_icon_settings'],'id'=>'btn_settings','style'=>'','link'=>PROJECT_PATH.'/core/user_settings/user_settings.php?id='.urlencode($user_uuid)]);
+		echo button::create(['type'=>'button','label'=>$text['button-settings'],'icon'=>$settings->get('theme', 'button_icon_settings'),'id'=>'btn_settings','style'=>'','link'=>PROJECT_PATH.'/core/user_settings/user_settings.php?id='.urlencode($user_uuid)]);
 	}
-	echo button::create(['type'=>'button','label'=>$text['button-save'],'icon'=>$_SESSION['theme']['button_icon_save'],'id'=>'btn_save','style'=>'margin-left: 15px;','onclick'=>'submit_form();']);
+	echo button::create(['type'=>'button','label'=>$text['button-save'],'icon'=>$settings->get('theme', 'button_icon_save'),'id'=>'btn_save','style'=>'margin-left: 15px;','onclick'=>'submit_form();']);
 	echo "	</div>\n";
 	echo "	<div style='clear: both;'></div>\n";
 	echo "</div>\n";
@@ -933,7 +946,7 @@
 		echo "<br />\n";
 		echo $text['description-contact']."\n";
 		if (!empty($contact_uuid)) {
-			echo "			<a href=\"".PROJECT_PATH."/app/contacts/contact_edit.php?id=".urlencode($contact_uuid)."\">".$text['description-contact_view']."</a>\n";
+			echo "			<a href=\"".PROJECT_PATH."/core/contacts/contact_edit.php?id=".urlencode($contact_uuid)."\">".$text['description-contact_view']."</a>\n";
 		}
 		echo "		</td>";
 		echo "	</tr>";
@@ -1022,7 +1035,7 @@
 			}
 			echo "</select>";
 			if ($action == 'edit') {
-				echo button::create(['type'=>'button','label'=>$text['button-add'],'icon'=>$_SESSION['theme']['button_icon_add'],'onclick'=>'submit_form();']);
+				echo button::create(['type'=>'button','label'=>$text['button-add'],'icon'=>$settings->get('theme', 'button_icon_add'),'onclick'=>'submit_form();']);
 			}
 		}
 		unset($sql, $parameters, $groups, $field);
@@ -1077,6 +1090,7 @@
 			echo button::create(['type'=>'button',
 				'label'=>$text['button-generate'],
 				'icon'=>'key',
+				'style'=>'margin-top: 1px; margin-bottom: 1px;',
 				'onclick'=>"document.getElementById('api_key').value = '".generate_password(32,3)."';
 					document.getElementById('frm').submit();"]);
 		}
@@ -1086,6 +1100,7 @@
 				'label'=>$text['button-view'],
 				'id'=>'button-api_key_view',
 				'icon'=>'key',
+				'style'=>'margin-top: 1px; margin-bottom: 1px;',
 				'onclick'=>"document.getElementById ('button-api_key_view').style.display = 'none';
 					document.getElementById('api_key').style.display = 'inline';
 					document.getElementById('button-api_key_hide').style.display = 'inline';

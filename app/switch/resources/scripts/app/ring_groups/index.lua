@@ -1,5 +1,5 @@
 --	Part of FusionPBX
---	Copyright (C) 2010-2023 Mark J Crane <markjcrane@fusionpbx.com>
+--	Copyright (C) 2010-2025 Mark J Crane <markjcrane@fusionpbx.com>
 --	All rights reserved.
 --
 --	Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 --  Gill Abada <gill.abada@gmail.com>
 
 --include the log
-log = require "resources.functions.log".ring_group
+	log = require "resources.functions.log".ring_group
 
 --connect to the database
 	local Database = require "resources.functions.database";
@@ -182,11 +182,6 @@ log = require "resources.functions.log".ring_group
 		call_direction = "local";
 	end
 
---set ring ready
-	if (session:ready()) then
-		session:execute("ring_ready", "");
-	end
-
 --define additional variables
 	external = "false";
 
@@ -235,6 +230,9 @@ log = require "resources.functions.log".ring_group
 		ring_group_forward_enabled = row["ring_group_forward_enabled"];
 		ring_group_forward_destination = row["ring_group_forward_destination"];
 		ring_group_forward_toll_allow = row["ring_group_forward_toll_allow"];
+		ring_group_timeout_app = row["ring_group_timeout_app"];
+		ring_group_timeout_data = row["ring_group_timeout_data"];
+		ring_group_exit_key = row["ring_group_exit_key"];
 		ring_group_call_timeout = row["ring_group_call_timeout"];
 		ring_group_caller_id_name = row["ring_group_caller_id_name"];
 		ring_group_caller_id_number = row["ring_group_caller_id_number"];
@@ -290,6 +288,17 @@ log = require "resources.functions.log".ring_group
 		session:setVariable("call_timeout", ring_group_call_timeout);
 	end
 
+--set exit key action
+	if (ring_group_timeout_app and ring_group_timeout_data) then
+		if (ring_group_exit_key) then
+			--use the user defined exit key
+			session:execute("bind_digit_action", "exit_key,"..ring_group_exit_key..",exec:"..ring_group_timeout_app..","..ring_group_timeout_data..",both,self");
+		else
+			--use a default exit key of 9
+			session:execute("bind_digit_action", "exit_key,9,exec:"..ring_group_timeout_app..","..ring_group_timeout_data..",both,self");
+		end
+	end
+
 --play the greeting
 	if (session:ready()) then
 		if (ring_group_greeting and #ring_group_greeting > 0) then
@@ -306,13 +315,39 @@ log = require "resources.functions.log".ring_group
 --call screen enabled
 	if (ring_group_call_screen_enabled == 'true') then
 
+		--local codecs = session:getVariable("codec_string")
+		local codecs = session:getVariable("rtp_use_codec_string");
+
+		--put the codecs into an array
+		local codec_array = explode(",",codecs);
+
+		--exclude video codecs and resave the new list to a string
+		local new_codec_array = {}
+		for index, value in ipairs(codec_array) do
+			if (value ~= "H264" and value ~= 'VP8') then
+				table.insert(new_codec_array, value)
+			end
+		end
+		local new_codecs = table.concat(new_codec_array, ",");
+
+		--set a new allowed codec string
+		session:setVariable("absolute_codec_string", new_codecs);
+
+		--callback function detecting dtmf
+		function on_dtmf(s, _type, obj, arg)
+			local k, v = nil, nil
+			if (_type == "dtmf") then
+				dtmf_entered = 1;
+				return 'break'
+			else
+				return ''
+			end
+		end
+
 		--answer the call if not answered
 		if (not session_answer) then
 			session:answer();
 		end
-
-		--flush dtmf digits from the input buffer
-		session:flushDigits();
 
 		--set the variables
 		min_digits = 1;
@@ -328,8 +363,8 @@ log = require "resources.functions.log".ring_group
 
 		--recording settings
 		max_length_seconds = 30;
-		silence_threshold = 30;
-		silence_seconds = 3;
+		silence_threshold = settings:get('recordings', 'recording_silence_threshold', 'numeric') or 200;
+		silence_seconds = settings:get('recordings', 'recording_silence_seconds', 'numeric') or 3;
 
 		--create the call scree file name
 		call_sreen_name = 'call_screen.'..uuid..'.'..record_ext;
@@ -339,10 +374,12 @@ log = require "resources.functions.log".ring_group
 			mkdir(record_path);
 		end
 
+		--set callback function for when a caller sends DTMF
+		session:setInputCallback('on_dtmf', '');
+
 		--record the name and reason for calling
 		if (session:ready()) then
 			result = session:recordFile(record_path..'/'..call_sreen_name, max_length_seconds, silence_threshold, silence_seconds);
-			--session:execute("record", record_path..'/'..call_sreen_name.." 180 200");
 		end
 	end
 
@@ -390,9 +427,9 @@ log = require "resources.functions.log".ring_group
 					local sql = "SELECT * FROM v_email_templates ";
 					sql = sql .. "WHERE (domain_uuid = :domain_uuid or domain_uuid is null) ";
 					sql = sql .. "AND template_language = :template_language ";
-					sql = sql .. "AND template_category = 'missed' "
-					sql = sql .. "AND template_enabled = 'true' "
-					sql = sql .. "ORDER BY domain_uuid DESC "
+					sql = sql .. "AND template_category = 'missed' ";
+					sql = sql .. "AND template_enabled = 'true' ";
+					sql = sql .. "ORDER BY domain_uuid DESC ";
 					local params = {domain_uuid = domain_uuid, template_language = default_language.."-"..default_dialect};
 					if (debug["sql"]) then
 						freeswitch.consoleLog("notice", "[voicemail] SQL: " .. sql .. "; params:" .. json.encode(params) .. "\n");
@@ -500,6 +537,12 @@ log = require "resources.functions.log".ring_group
 			end
 			if (ring_group_caller_id_number ~= nil and ring_group_caller_id_number ~= '') then
 				caller_id_number = ring_group_caller_id_number;
+			end
+
+		--set the diversion header
+			local diversion_enabled = settings:get('ring_group', 'diversion_enabled', 'boolean') or 'false';
+			if (diversion_enabled == 'true') then
+				session:setVariable("sip_h_Diversion", "<sip:"..ring_group_forward_destination.."@"..context..":5060>;reason=unconditional");
 			end
 
 		--forward the ring group
@@ -629,11 +672,15 @@ log = require "resources.functions.log".ring_group
 			end);
 			--freeswitch.consoleLog("NOTICE", "[ring_group] external "..external.."\n");
 
-		--get the dialplan data and save it to a table
+		--run this if there are any external destinations
 			if (external == "true") then
-				dialplans = route_to_bridge.preload_dialplan(
-					dbh, domain_uuid, {hostname = hostname, context = context}
-				)
+				-- set ignore early media
+					session:execute("set", "ignore_early_media=true");
+
+				--get the dialplan data and save it to a table
+					--dialplans = route_to_bridge.preload_dialplan(
+					--	dbh, domain_uuid, {hostname = hostname, context = context}
+					--)
 			end
 
 		---add follow me destinations
@@ -861,7 +908,9 @@ log = require "resources.functions.log".ring_group
 						end
 
 					--determine confirm prompt
-						if (destination_prompt == nil) then
+						if (ring_group_call_screen_enabled ~= nil and ring_group_call_screen_enabled == 'true') then
+							group_confirm = "group_confirm_key=exec,group_confirm_file=lua ".. scripts_dir:gsub('\\','/') .."/confirm.lua,confirm=true,";
+						elseif (destination_prompt == nil) then
 							group_confirm = "confirm=false,";
 						elseif (destination_prompt == "1") then
 							group_confirm = "group_confirm_key=exec,group_confirm_file=lua ".. scripts_dir:gsub('\\','/') .."/confirm.lua,confirm=true,";
@@ -897,6 +946,25 @@ log = require "resources.functions.log".ring_group
 							record_session = '';
 						end
 						row.record_session = record_session
+
+					--call timeout ignored with enterprise adjust the destinaton_timeout to honor the call timeout
+						if (ring_group_strategy == "enterprise") then
+							delay = tonumber(destination_delay)
+							if (delay >= 1000) then
+								delay = delay / 1000;
+							end
+							timeout = tonumber(destination_timeout);
+							call_timeout = tonumber(ring_group_call_timeout);
+							if (delay == 0 and call_timeout < timeout) then
+								destination_timeout = call_timeout;
+							end
+							if (delay > 0 and call_timeout < delay + timeout) then
+								destination_timeout = (delay + timeout) - call_timeout;
+								if (delay >= call_timeout) then
+									goto continue
+								end
+							end
+						end
 
 					--process according to user_exists, sip_uri, external number
 						if (user_exists == "true") then
@@ -1011,6 +1079,7 @@ log = require "resources.functions.log".ring_group
 					--increment the value of x
 						x = x + 1;
 				end
+				::continue::
 			end
 
 		--release dbh before bridge

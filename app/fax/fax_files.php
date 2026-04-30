@@ -241,7 +241,7 @@
 	unset($sql, $parameters);
 
 //prepare to page the results
-	$rows_per_page = ($_SESSION['domain']['paging']['numeric'] != '') ? $_SESSION['domain']['paging']['numeric'] : 50;
+	$rows_per_page = $settings->get('domain', 'paging', 50);
 	$param = "&id=".$fax_uuid."&box=".$_GET['box'].(!empty($_GET['order_by']) ? "&order_by=".$_GET['order_by'] : null).(!empty($_GET['order']) ? "&order=".$_GET['order'] : null);
 	$page = !empty($_GET['page']) && is_numeric($_GET['page']) ? $_GET['page'] : 0;
 	list($paging_controls, $rows_per_page) = paging($num_rows, $param, $rows_per_page);
@@ -273,7 +273,7 @@
 //get the list
 	$sql = "select domain_uuid, fax_file_uuid, fax_uuid, fax_mode, \n";
 	$sql .= "fax_destination, fax_file_type, fax_file_path, fax_caller_id_name, \n";
-	$sql .= "fax_caller_id_number, fax_epoch, fax_base64, fax_date, \n";
+	$sql .= "fax_caller_id_number, fax_recipient, fax_epoch, fax_base64, fax_date, \n";
 	$sql .= "to_char(timezone(:time_zone, fax_date), 'DD Mon YYYY') as fax_date_formatted, \n";
 	$sql .= "to_char(timezone(:time_zone, fax_date), '".$time_format."') as fax_time_formatted, \n";
 	$sql .= "to_char(timezone(:time_zone, read_date), 'YYYY-MM-DD') as read_date_formatted \n";
@@ -323,13 +323,13 @@
 	echo "<style>\n";
 	echo "	div#pdf-container {\n";
 	echo "		z-index: -1;\n";
-	echo "		position: absolute;\n";
+	echo "		position: fixed;\n";
 	echo "		top: 0;\n";
 	echo "		left: 0;\n";
 	echo "		width: 100%;\n";
 	echo "		height: 100%;\n";
 	echo "		opacity: 0;\n";
-	echo "		transition: opacity 1s;\n";
+	echo "		transition: opacity .5s;\n";
 	echo "		padding: 20px;\n";
 	echo "	}\n";
 	echo "	div#pdf-div {\n";
@@ -366,14 +366,14 @@
 	echo "	</div>\n";
 	echo "	<div class='actions'>\n";
 
-	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$_SESSION['theme']['button_icon_back'],'id'=>'btn_back','link'=>'fax.php']);
+	echo button::create(['type'=>'button','label'=>$text['button-back'],'icon'=>$settings->get('theme', 'button_icon_back'),'id'=>'btn_back','link'=>'fax.php']);
 	$margin_left = false;
 	if (permission_exists('fax_file_edit') && $_REQUEST['box'] == 'inbox' && $fax_files) {
-		echo button::create(['type'=>'button','label'=>$text['button-toggle'],'icon'=>$_SESSION['theme']['button_icon_toggle'],'id'=>'btn_toggle','name'=>'btn_toggle','collapse'=>'hide-xs','style'=>'display: none; margin-left: 15px;','onclick'=>"modal_open('modal-toggle','btn_toggle');"]);
+		echo button::create(['type'=>'button','label'=>$text['button-toggle'],'icon'=>$settings->get('theme', 'button_icon_toggle'),'id'=>'btn_toggle','name'=>'btn_toggle','collapse'=>'hide-xs','style'=>'display: none; margin-left: 15px;','onclick'=>"modal_open('modal-toggle','btn_toggle');"]);
 		$margin_left = true;
 	}
 	if (permission_exists('fax_file_delete') && $fax_files) {
-		echo button::create(['type'=>'button','label'=>$text['button-delete'],'icon'=>$_SESSION['theme']['button_icon_delete'],'id'=>'btn_delete','name'=>'btn_delete','style'=>'display: none; '.(!$margin_left ? 'margin-left: 15px;' : null),'onclick'=>"modal_open('modal-delete','btn_delete');"]);
+		echo button::create(['type'=>'button','label'=>$text['button-delete'],'icon'=>$settings->get('theme', 'button_icon_delete'),'id'=>'btn_delete','name'=>'btn_delete','style'=>'display: none; '.(!$margin_left ? 'margin-left: 15px;' : null),'onclick'=>"modal_open('modal-delete','btn_delete');"]);
 	}
 	if ($paging_controls_mini != '') {
 		echo 	"<span style='margin-left: 15px;'>".$paging_controls_mini."</span>\n";
@@ -405,6 +405,9 @@
 	echo th_order_by('fax_caller_id_name', $text['label-fax_caller_id_name'], $order_by, $order, "&id=".$fax_uuid."&box=".$_GET['box']."&page=".$page);
 	echo th_order_by('fax_caller_id_number', $text['label-fax_caller_id_number'], $order_by, $order, "&id=".$fax_uuid."&box=".$_GET['box']."&page=".$page);
 	if ($_REQUEST['box'] == 'sent') {
+		if (permission_exists('fax_sent_recipient')) {
+			echo th_order_by('fax_recipient', $text['label-fax_recipient'], $order_by, $order, "&id=".$fax_uuid."&box=".$_GET['box']."&page=".$page);
+		}
 		echo th_order_by('fax_destination', $text['label-fax_destination'], $order_by, $order, "&id=".$fax_uuid."&box=".$_GET['box']."&page=".$page);
 	}
 	if (permission_exists('fax_download_view')) {
@@ -518,7 +521,7 @@
 			}
 
 			echo "<tr class='list-row' href='".$list_row_url."'>\n";
-			if (permission_exists('fax_file_delete') || permission_exists['fax_file_edit']) {
+			if (permission_exists('fax_file_delete') || permission_exists('fax_file_edit')) {
 				echo "	<td class='checkbox'>\n";
 				echo "		<input type='checkbox' name='fax_files[$x][checked]' id='checkbox_".$x."' value='true' onclick=\"if (!this.checked) { document.getElementById('checkbox_all').checked = false; } checkbox_on_change(this);\">\n";
 				echo "		<input type='hidden' name='fax_files[$x][uuid]' value='".escape($row['fax_file_uuid'])."' />\n";
@@ -527,6 +530,9 @@
 			echo "	<td style='".$bold."'>".escape($row['fax_caller_id_name'])."&nbsp;</td>\n";
 			echo "	<td style='".$bold."'>".escape(format_phone($row['fax_caller_id_number']))."&nbsp;</td>\n";
 			if ($_REQUEST['box'] == 'sent') {
+				if (permission_exists('fax_sent_recipient')) {
+					echo "	<td>".escape($row['fax_recipient'])."&nbsp;</td>\n";
+				}
 				echo "	<td>".escape(format_phone($row['fax_destination']))."&nbsp;</td>\n";
 			}
 			if (permission_exists('fax_download_view')) {

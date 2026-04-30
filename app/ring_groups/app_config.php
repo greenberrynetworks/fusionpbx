@@ -5,7 +5,7 @@
 		$apps[$x]['uuid'] = "1d61fb65-1eec-bc73-a6ee-a6203b4fe6f2";
 		$apps[$x]['category'] = "Switch";
 		$apps[$x]['subcategory'] = "";
-		$apps[$x]['version'] = "1.0";
+		$apps[$x]['version'] = "1.1";
 		$apps[$x]['license'] = "Mozilla Public License 1.1";
 		$apps[$x]['url'] = "http://www.fusionpbx.com";
 		$apps[$x]['description']['en-us'] = "A tool to call multiple extensions.";
@@ -228,6 +228,22 @@
 		$apps[$x]['default_settings'][$y]['default_setting_value'] = "false";
 		$apps[$x]['default_settings'][$y]['default_setting_enabled'] = "false";
 		$apps[$x]['default_settings'][$y]['default_setting_description'] = "Enable or disable the adding diversion header for external destinations.";
+		$y++;
+		$apps[$x]['default_settings'][$y]['default_setting_uuid'] = "739019e3-d04e-4b4a-b556-78323c9b7512";
+		$apps[$x]['default_settings'][$y]['default_setting_category'] = "ring_group";
+		$apps[$x]['default_settings'][$y]['default_setting_subcategory'] = "default_ringback";
+		$apps[$x]['default_settings'][$y]['default_setting_name'] = "text";
+		$apps[$x]['default_settings'][$y]['default_setting_value'] = "";
+		$apps[$x]['default_settings'][$y]['default_setting_enabled'] = "false";
+		$apps[$x]['default_settings'][$y]['default_setting_description'] = "";
+		$y++;
+		$apps[$x]['default_settings'][$y]['default_setting_uuid'] = "50cbb1bb-3d67-4320-9f7e-0b09aa09676d";
+		$apps[$x]['default_settings'][$y]['default_setting_category'] = "ring_group";
+		$apps[$x]['default_settings'][$y]['default_setting_subcategory'] = "ring_ready";
+		$apps[$x]['default_settings'][$y]['default_setting_name'] = "boolean";
+		$apps[$x]['default_settings'][$y]['default_setting_value'] = "true";
+		$apps[$x]['default_settings'][$y]['default_setting_enabled'] = "true";
+		$apps[$x]['default_settings'][$y]['default_setting_description'] = "Add ring_ready in the dialplan to send 180 ringing to calling party";
 
 	//schema details
 		$y=0;
@@ -262,9 +278,9 @@
 		$apps[$x]['db'][$y]['fields'][$z]['type'] = "text";
 		$apps[$x]['db'][$y]['fields'][$z]['description']['en-us'] = "Select the greeting.";
 		$z++;
-		$apps[$x]['db'][$y]['fields'][$z]['name'] = "ring_group_context";
+		$apps[$x]['db'][$y]['fields'][$z]['name'] = "ring_group_exit_key";
 		$apps[$x]['db'][$y]['fields'][$z]['type'] = "text";
-		$apps[$x]['db'][$y]['fields'][$z]['description']['en-us'] = "Enter the context.";
+		$apps[$x]['db'][$y]['fields'][$z]['description']['en-us'] = "Enter the exit key.";
 		$z++;
 		$apps[$x]['db'][$y]['fields'][$z]['name'] = "ring_group_call_timeout";
 		$apps[$x]['db'][$y]['fields'][$z]['type'] = "numeric";
@@ -336,6 +352,10 @@
 		$apps[$x]['db'][$y]['fields'][$z]['name'] = "ring_group_missed_call_data";
 		$apps[$x]['db'][$y]['fields'][$z]['type'] = "text";
 		$apps[$x]['db'][$y]['fields'][$z]['description']['en-us'] = "";
+		$z++;
+		$apps[$x]['db'][$y]['fields'][$z]['name'] = "ring_group_context";
+		$apps[$x]['db'][$y]['fields'][$z]['type'] = "text";
+		$apps[$x]['db'][$y]['fields'][$z]['description']['en-us'] = "Enter the context.";
 		$z++;
 		$apps[$x]['db'][$y]['fields'][$z]['name'] = "ring_group_enabled";
 		$apps[$x]['db'][$y]['fields'][$z]['type'] = "text";

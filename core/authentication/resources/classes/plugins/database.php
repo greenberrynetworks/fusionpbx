@@ -17,7 +17,7 @@
 
 	The Initial Developer of the Original Code is
 	Mark J Crane <markjcrane@fusionpbx.com>
-	Portions created by the Initial Developer are Copyright (C) 2008-2023
+	Portions created by the Initial Developer are Copyright (C) 2008-2024
 	the Initial Developer. All Rights Reserved.
 
 	Contributor(s):
@@ -38,6 +38,10 @@ class plugin_database {
 	public $domain_uuid;
 	public $user_uuid;
 	public $contact_uuid;
+	public $contact_organization;
+	public $contact_name_given;
+	public $contact_name_family;
+	public $contact_image;
 	public $username;
 	public $password;
 	public $key;
@@ -63,9 +67,15 @@ class plugin_database {
 			$login_destination = $settings->get('login', 'destination');
 			$users_unique = $settings->get('users', 'unique', '');
 
+		//determine whether to show the forgot password for resetting the password
+			$login_password_reset_enabled = false;
+			if (!empty($settings->get('login', 'password_reset_key'))) {
+				$login_password_reset_enabled = true;
+			}
+
 		//check if already authorized
 			if (isset($_SESSION['authentication']['plugin']['database']) && $_SESSION['authentication']['plugin']['database']["authorized"]) {
-				return $_SESSION['authentication']['plugin']['database'];
+				return;
 			}
 
 		//show the authentication code view
@@ -101,17 +111,39 @@ class plugin_database {
 					$view->assign("project_path", PROJECT_PATH);
 					$view->assign("login_destination_url", $login_destination);
 					$view->assign("login_domain_name_visible", $login_domain_name_visible);
-					$view->assign("login_domain_names", $login_domain_name);			
+					$view->assign("login_domain_names", $login_domain_name);
+					$view->assign("login_password_reset_enabled", $login_password_reset_enabled);
 					$view->assign("favicon", $theme_favicon);
 					$view->assign("login_logo_width", $theme_login_logo_width);
 					$view->assign("login_logo_height", $theme_login_logo_height);
 					$view->assign("login_logo_source", $theme_logo);
 					$view->assign("message_delay", $theme_message_delay);
 					$view->assign("background_video", $theme_background_video);
+					$view->assign("login_password_description", $text['label-password_description']);
+					$view->assign("button_cancel", $text['button-cancel']);
+					$view->assign("button_forgot_password", $text['button-forgot_password']);
+
+				//assign openid values to the template
+					if ($settings->get('open_id', 'enabled', false)) {
+						$classes = $settings->get('open_id', 'methods', []);
+						$banners = [];
+						foreach ($classes as $open_id_class) {
+							if (class_exists($open_id_class)) {
+								$banners[] = [
+									'name' => $open_id_class,
+									'image' => $open_id_class::get_banner_image(),
+									'url' => '/app/open_id/open_id.php?action=' . $open_id_class,
+								];
+							}
+						}
+						if (count($banners) > 0) {
+							$view->assign('banners', $banners);
+						}
+					}
+
+				//assign user to the template
 					if (!empty($_SESSION['username'])) {
-						$view->assign("login_password_description", $text['label-password_description']);
 						$view->assign("username", $_SESSION['username']);
-						$view->assign("button_cancel", $text['button-cancel']);
 					}
 
 				//messages
@@ -166,12 +198,40 @@ class plugin_database {
 		//set the default status
 			$user_authorized = false;
 
+		//check if contacts app exists
+			$contacts_exists = file_exists($_SERVER["DOCUMENT_ROOT"].PROJECT_PATH.'/core/contacts/') ? true : false;
+
 		//check the username and password if they don't match then redirect to the login
-			$sql = "select u.user_uuid, u.contact_uuid, u.username, u.password, ";
-			$sql .= "u.user_email, u.salt, u.api_key, u.domain_uuid, d.domain_name ";
-			$sql .= "from v_users as u, v_domains as d ";
-			$sql .= "where u.domain_uuid = d.domain_uuid ";
-			$sql .= "and (user_type = 'default' or user_type is null) ";
+			$sql = "select ";
+			$sql .= "	d.domain_name, ";
+			$sql .= "	u.user_uuid, ";
+			$sql .= "	u.contact_uuid, ";
+			$sql .= "	u.username, ";
+			$sql .= "	u.password, ";
+			$sql .= "	u.user_email, ";
+			$sql .= "	u.salt, ";
+			$sql .= "	u.api_key, ";
+			$sql .= "	u.domain_uuid ";
+			if ($contacts_exists) {
+				$sql .= ",";
+				$sql .= "c.contact_organization, ";
+				$sql .= "c.contact_name_given, ";
+				$sql .= "c.contact_name_family, ";
+				$sql .= "a.contact_attachment_uuid ";
+			}
+			$sql .= "from ";
+			$sql .= "	v_domains as d, ";
+			$sql .= "	v_users as u ";
+			if ($contacts_exists) {
+				$sql .= "left join v_contacts as c on u.contact_uuid = c.contact_uuid and u.contact_uuid is not null ";
+				$sql .= "left join v_contact_attachments as a on u.contact_uuid = a.contact_uuid and u.contact_uuid is not null and a.attachment_primary = 1 and a.attachment_filename is not null and a.attachment_content is not null ";
+			}
+			$sql .= "where ";
+			$sql .= "	u.domain_uuid = d.domain_uuid ";
+			$sql .= "	and (";
+			$sql .= "		user_type = 'default' ";
+			$sql .= "		or user_type is null";
+			$sql .= "	) ";
 			if (isset($this->key) && strlen($this->key) > 30) {
 				$sql .= "and u.api_key = :api_key ";
 				$parameters['api_key'] = $this->key;
@@ -236,6 +296,12 @@ class plugin_database {
 							$this->username = $row['username'];
 							$this->user_email = $row['user_email'];
 							$this->contact_uuid = $row['contact_uuid'];
+							if ($contacts_exists) {
+								$this->contact_organization = $row['contact_organization'];
+								$this->contact_name_given = $row['contact_name_given'];
+								$this->contact_name_family = $row['contact_name_family'];
+								$this->contact_image = $row['contact_attachment_uuid'];
+							}
 
 						//debug info
 							//echo "user_uuid ".$this->user_uuid."<br />\n";
@@ -272,7 +338,7 @@ class plugin_database {
 								$array['user_groups'][0]['user_uuid'] = $this->user_uuid;
 
 							//grant temporary permissions
-								$p = new permissions;
+								$p = permissions::new();
 								$p->add('user_edit', 'temp');
 
 							//execute insert
@@ -287,18 +353,6 @@ class plugin_database {
 						}
 
 					}
-					else {
-						//clear authentication session
-						if (empty($_SESSION['authentication']['methods']) || !is_array($_SESSION['authentication']['methods'])) {
-							unset($_SESSION['authentication']);
-						}
-
-						// clear username
-						if (!empty($_REQUEST["password"])) {
-							unset($_SESSION['username'], $_REQUEST['username'], $_POST['username']);
-							unset($_SESSION['authentication']);
-						}
-					}
 
 					//result array
 					if ($valid_password) {
@@ -308,6 +362,12 @@ class plugin_database {
 						$result["user_uuid"] = $this->user_uuid;
 						$result["domain_uuid"] = $_SESSION['domain_uuid'];
 						$result["contact_uuid"] = $this->contact_uuid;
+						if ($contacts_exists) {
+							$result["contact_organization"] = $this->contact_organization;
+							$result["contact_name_given"] = $this->contact_name_given;
+							$result["contact_name_family"] = $this->contact_name_family;
+							$result["contact_image"] = $this->contact_image;
+						}
 						$result["user_email"] = $this->user_email;
 						$result["sql"] = $sql;
 						$result["authorized"] = $valid_password;
@@ -317,12 +377,7 @@ class plugin_database {
 					return $result ?? false;
 
 			}
-			else {
 
-				unset($_SESSION['username'], $_REQUEST['username'], $_POST['username']);
-				unset($_SESSION['authentication']);
-
-			}
 
 		return;
 
